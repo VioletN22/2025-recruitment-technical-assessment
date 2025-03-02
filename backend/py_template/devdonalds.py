@@ -88,10 +88,42 @@ def create_entry():
 
 # [TASK 3] ====================================================================
 # Endpoint that returns a summary of a recipe that corresponds to a query name
+#Helper for Task3
+def get_ingredients(items):
+        total_cook_time = 0
+        base_ingredients = {}
+
+        for item in items:
+            entry = cookbook.get(item.name)
+
+            if isinstance(entry, Ingredient):
+                total_cook_time += entry.cook_time * item.quantity
+                base_ingredients[item.name] = base_ingredients.get(item.name, 0) + item.quantity
+            elif isinstance(entry, Recipe):
+                cook_time, sub_ingredients = get_ingredients(entry.required_items)
+                total_cook_time += cook_time
+                for ingr, qty in sub_ingredients.items():
+                    base_ingredients[ingr] = base_ingredients.get(ingr, 0) + qty
+
+        return total_cook_time, base_ingredients
+
 @app.route('/summary', methods=['GET'])
 def summary():
-	# TODO: implement me
-	return 'not implemented', 500
+	recipe_name = request.args.get("name")
+
+	if recipe_name not in cookbook or not isinstance(cookbook[recipe_name], Recipe):
+		return "", 400
+
+	recipe = cookbook[recipe_name]
+
+	total_cook_time, ingredients = get_ingredients(recipe.required_items)
+
+	return jsonify({
+		"name": recipe_name,
+		"cookTime": total_cook_time,
+		"ingredients": [{"name": k, "quantity": v} for k, v in ingredients.items()]
+	})
+	
 
 
 # =============================================================================
